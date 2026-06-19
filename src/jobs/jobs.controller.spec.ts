@@ -1,18 +1,40 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JobsController } from './jobs.controller';
+import { JobsService } from './jobs.service';
 
 describe('JobsController', () => {
-  let controller: JobsController;
+    let controller: JobsController;
+    let service: jest.Mocked<Pick<JobsService, 'createJob'>>;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [JobsController],
-    }).compile();
+    beforeAll(async () => {
+        service = {
+            createJob: jest.fn(),
+        };
 
-    controller = module.get<JobsController>(JobsController);
-  });
+        const module: TestingModule = await Test.createTestingModule({
+            controllers: [JobsController],
+            providers: [
+                {
+                    provide: JobsService,
+                    useValue: service,
+                },
+            ],
+        }).compile();
 
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
-  });
+        controller = module.get<JobsController>(JobsController);
+    });
+
+    it('должен быть определен', () => {
+        expect(controller).toBeDefined();
+    });
+
+    it('createJob должен вызвать метод сервиса createJob', () => {
+        const dto = {
+            urls: ['https://example.com'],
+        };
+
+        controller.createJob(dto);
+
+        expect(service.createJob).toHaveBeenCalled();
+    });
 });
