@@ -16,11 +16,21 @@ describe('JobsRepository', () => {
         expect(service).toBeDefined();
     });
 
-    it('read должен возвращать undefined если jobId не передан', () => {
+    it('findById должен возвращать undefined если jobId не передан', () => {
         expect(service.findById()).toBe(undefined);
     });
 
     it('create должен создать Job в store и вернуть jobId', () => {
-        expect(service.findById()).toBe(undefined);
+        const urls = ['https://example.com'];
+
+        const jobId = service.create(urls);
+        expect(service.findById(jobId)!.id).toBe(jobId);
+    });
+
+    it('findById должен возвращать Job если jobId передан', () => {
+        const urls = ['https://example.com'];
+
+        const jobId = service.create(urls);
+        expect(service.findById(jobId)!.id).toBe(jobId);
     });
 });
