@@ -5,7 +5,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { JobsModule } from '../src/jobs/jobs.module';
 import { CreateJobResponseDto } from '../src/jobs/dto/create-job-response.dto';
 import { GetJobsResponseDto } from '../src/jobs/dto/get-jobs-response.dto';
-import { GetUrlChecksInfoDto } from '../src/jobs/dto/get-url-checks-info.dto';
 import { JobStatus } from '../src/jobs/consts/job-status.const';
 import { GetJobDetailsDto } from 'src/jobs/dto/get-job-details.dto';
 
@@ -128,10 +127,9 @@ describe('JobsController (e2e)', () => {
 
         await request(server).delete(`/jobs/${jobId}`).expect(200);
 
-        const { body: getBody } = await request(server).get('/jobs').expect(200);
+        const { body: getBody } = await request(server).get(`/jobs/${jobId}`).expect(200);
 
-        const jobList = getBody as GetJobsResponseDto[];
-        const job = jobList.find((job) => job.id === jobId)!;
+        const job = getBody as GetJobDetailsDto;
 
         expect(job.status).toBe(JobStatus.cancelled);
     });
