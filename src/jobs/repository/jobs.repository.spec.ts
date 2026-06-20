@@ -42,7 +42,7 @@ describe('JobsRepository', () => {
 
         const ids = [repository.create(urls_1), repository.create(urls_2)];
 
-        const list = repository.getJobs();
+        const list = repository.getList();
 
         expect(list).toHaveLength(2);
         list.forEach((job, index) => {

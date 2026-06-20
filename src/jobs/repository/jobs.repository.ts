@@ -42,7 +42,7 @@ export class JobsRepository {
         return this.store.get(id);
     }
 
-    public getJobs(): Job[] {
+    public getList(): Job[] {
         return [...this.store.values()];
     }
 
