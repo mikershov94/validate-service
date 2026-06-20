@@ -71,14 +71,20 @@ describe('JobsRepository', () => {
         ]);
     });
 
-    it('markCancelled помечает Job c переданным id как cancelled', () => {
+    it('setStatus устанавливает в Job c jobId переданный статус', () => {
         const urls = ['https://example1.com', 'https://example2.com'];
         const jobId = repository.create(urls);
 
-        repository.markCancelled(jobId);
+        repository.setStatus(jobId, JobStatus.inProgress);
+        let job = repository.findById(jobId)!;
+        expect(job.status).toBe(JobStatus.inProgress);
 
-        const job = repository.findById(jobId)!;
+        repository.setStatus(jobId, JobStatus.completed);
+        job = repository.findById(jobId)!;
+        expect(job.status).toBe(JobStatus.completed);
 
+        repository.setStatus(jobId, JobStatus.cancelled);
+        job = repository.findById(jobId)!;
         expect(job.status).toBe(JobStatus.cancelled);
     });
 });

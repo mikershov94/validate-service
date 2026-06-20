@@ -1,18 +1,51 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { JobsProcessorService } from './jobs-processor.service';
+import { JobsProcessor } from './jobs-processor.service';
+import { JobsRepository } from '../repository/jobs.repository';
+import { JobStatus } from '../consts/job-status.const';
 
-describe('JobsProcessorService', () => {
-  let service: JobsProcessorService;
+describe('JobsProcessor', () => {
+    let processor: JobsProcessor;
+    let repository: jest.Mocked<Omit<JobsRepository, 'store'>>;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [JobsProcessorService],
-    }).compile();
+    beforeAll(async () => {
+        repository = {
+            create: jest.fn(),
+            getList: jest.fn(),
+            findById: jest.fn(),
+            getUrlChecksByJobId: jest.fn(),
+            setStatus: jest.fn(),
+        };
 
-    service = module.get<JobsProcessorService>(JobsProcessorService);
-  });
+        const module: TestingModule = await Test.createTestingModule({
+            providers: [
+                JobsProcessor,
+                {
+                    provide: JobsRepository,
+                    useValue: repository,
+                },
+            ],
+        }).compile();
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
+        processor = module.get<JobsProcessor>(JobsProcessor);
+    });
+
+    it('должен быть определен', () => {
+        expect(processor).toBeDefined();
+    });
+
+    it('process должен завершать Job', () => {
+        const jobId = 'job-1';
+
+        repository.findById.mockReturnValue({
+            id: jobId,
+            status: JobStatus.pending,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            urlChecks: [],
+        });
+
+        processor.process(jobId);
+
+        expect(repository.setStatus).toHaveBeenCalledWith(jobId, JobStatus.completed);
+    });
 });

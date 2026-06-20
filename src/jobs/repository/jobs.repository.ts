@@ -50,16 +50,15 @@ export class JobsRepository {
         return this.findById(id)!.urlChecks;
     }
 
-    public markCancelled(id: JobId): void {
+    public setStatus(id: JobId, status: JobStatus): void {
         const job = this.store.get(id);
-
         if (!job) {
             return;
         }
 
         this.store.set(id, {
             ...job,
-            status: JobStatus.cancelled,
+            status,
             updatedAt: new Date(),
         });
     }
