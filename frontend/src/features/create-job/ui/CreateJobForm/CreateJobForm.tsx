@@ -2,6 +2,8 @@ import { useState } from 'react';
 
 import { Button, Card, TextInput } from '@shared';
 
+import styles from './CreateJobForm.module.scss';
+
 export function CreateJobForm() {
     const [urls, setUrls] = useState<string[]>(['']);
 
@@ -22,11 +24,12 @@ export function CreateJobForm() {
     };
 
     return (
-        <Card title="Новая проверка">
+        <Card title="Новое задание">
+            <label>URL's</label>
             {urls.map((url, index) => (
-                <div key={index}>
+                <div key={index} className={styles.row}>
                     <TextInput
-                        label={index === 0 ? 'URLs' : undefined}
+                        className={styles.textInput}
                         placeholder="https://example.com"
                         value={url}
                         onChange={(event) => changeUrl(index, event.currentTarget.value)}
@@ -40,11 +43,13 @@ export function CreateJobForm() {
                 </div>
             ))}
 
-            <Button variant="light" onClick={addUrl}>
-                + URL
-            </Button>
+            <div className={styles.btns}>
+                <Button variant="light" onClick={addUrl}>
+                    + URL
+                </Button>
 
-            <Button onClick={submit}>Запустить</Button>
+                <Button onClick={submit}>Создать</Button>
+            </div>
         </Card>
     );
 }
