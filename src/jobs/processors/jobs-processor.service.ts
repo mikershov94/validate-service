@@ -7,6 +7,7 @@ import { isFailedCode } from '../helpers/is-failed-code.helper';
 import { generateHttpError } from '../helpers/generate-http-error.helper';
 import { UrlCheckErrorMessage } from '../consts/url-check-errors.const';
 import { DelayService } from '../services/delay.service';
+import { UrlCheckStatus } from '../consts/url-check-status.const';
 
 @Injectable()
 export class JobsProcessor {
@@ -29,6 +30,8 @@ export class JobsProcessor {
 
         this.repository.markInProgress(job.id);
 
+        let hasErrors = false;
+
         for (let i = 0; i < job.urlChecks.length; i += this.batchSize) {
             const currentJob = this.repository.findById(jobId);
 
@@ -39,17 +42,23 @@ export class JobsProcessor {
 
             const batch = job.urlChecks.slice(i, i + this.batchSize);
 
-            await Promise.all(
-                batch.map((check) => {
-                    return this.processUrl(job.id, check, new Date());
-                }),
+            const results = await Promise.all(
+                batch.map((check) => this.processUrl(job.id, check, new Date())),
             );
+
+            if (results.some((result) => result === UrlCheckStatus.error)) {
+                hasErrors = true;
+            }
         }
 
-        this.repository.setStatus(job.id, JobStatus.completed);
+        this.repository.setStatus(job.id, hasErrors ? JobStatus.failed : JobStatus.completed);
     }
 
-    private async processUrl(jobId: JobId, urlCheck: UrlCheck, startedAt: Date): Promise<void> {
+    private async processUrl(
+        jobId: JobId,
+        urlCheck: UrlCheck,
+        startedAt: Date,
+    ): Promise<UrlCheckStatus> {
         const url = urlCheck.url;
 
         try {
@@ -63,7 +72,7 @@ export class JobsProcessor {
                     message: errorMessage!,
                 });
 
-                return;
+                return UrlCheckStatus.error;
             }
 
             const now = new Date();
@@ -76,10 +85,14 @@ export class JobsProcessor {
                 endedAt: now,
                 duration,
             });
+
+            return UrlCheckStatus.success;
         } catch {
             this.repository.markUrlCheckError(jobId, url, {
                 message: UrlCheckErrorMessage.DEFAULT,
             });
+
+            return UrlCheckStatus.error;
         }
     }
 }

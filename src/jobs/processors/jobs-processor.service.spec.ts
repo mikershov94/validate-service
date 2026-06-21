@@ -7,6 +7,7 @@ import { UrlCheckStatus } from '../consts/url-check-status.const';
 import { UrlCheckerService } from '../services/url-checker.service';
 import { UrlCheckErrorMessage } from '../consts/url-check-errors.const';
 import { DelayService } from '../services/delay.service';
+import { HttpStatus } from '@nestjs/common';
 
 describe('JobsProcessor', () => {
     let processor: JobsProcessor;
@@ -358,5 +359,110 @@ describe('JobsProcessor', () => {
         expect(urlChecker.check).toHaveBeenCalledTimes(10);
         expect(maxActiveRequests).toBeGreaterThan(1);
         expect(maxActiveRequests).toBeLessThanOrEqual(5);
+    });
+
+    it('process должен устанавливать failed для Job, если хотя бы один UrlCheck завершился error', async () => {
+        const jobId: JobId = 'job-1';
+
+        const job: Job = {
+            id: jobId,
+            status: JobStatus.pending,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            urlChecks: [
+                {
+                    url: 'https://success.com',
+                    status: UrlCheckStatus.pending,
+                },
+                {
+                    url: 'https://error.com',
+                    status: UrlCheckStatus.pending,
+                },
+            ],
+        };
+
+        const processedJob: Job = {
+            ...job,
+            urlChecks: [
+                {
+                    url: 'https://success.com',
+                    status: UrlCheckStatus.success,
+                },
+                {
+                    url: 'https://error.com',
+                    status: UrlCheckStatus.error,
+                    httpCode: HttpStatus.NOT_FOUND,
+                    errorMessage: UrlCheckErrorMessage.CLIENT_ERROR,
+                },
+            ],
+        };
+
+        repository.findById
+            .mockReturnValueOnce(job)
+            .mockReturnValueOnce(job)
+            .mockReturnValueOnce(processedJob);
+
+        repository.markInProgress.mockReturnValue(new Date());
+
+        urlChecker.check
+            .mockResolvedValueOnce(HttpStatus.OK)
+            .mockResolvedValueOnce(HttpStatus.NOT_FOUND);
+
+        delayService.wait.mockResolvedValue(undefined);
+
+        await processor.process(jobId);
+
+        expect(repository.setStatus).toHaveBeenCalledWith(jobId, JobStatus.failed);
+        expect(repository.setStatus).not.toHaveBeenCalledWith(jobId, JobStatus.completed);
+    });
+
+    it('process должен устанавливать completed для Job, если все UrlCheck завершились success', async () => {
+        const jobId: JobId = 'job-1';
+
+        const job: Job = {
+            id: jobId,
+            status: JobStatus.pending,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            urlChecks: [
+                {
+                    url: 'https://example1.com',
+                    status: UrlCheckStatus.pending,
+                },
+                {
+                    url: 'https://example2.com',
+                    status: UrlCheckStatus.pending,
+                },
+            ],
+        };
+
+        const processedJob: Job = {
+            ...job,
+            urlChecks: [
+                {
+                    url: 'https://example1.com',
+                    status: UrlCheckStatus.success,
+                },
+                {
+                    url: 'https://example2.com',
+                    status: UrlCheckStatus.success,
+                },
+            ],
+        };
+
+        repository.findById
+            .mockReturnValueOnce(job)
+            .mockReturnValueOnce(job)
+            .mockReturnValueOnce(processedJob);
+
+        repository.markInProgress.mockReturnValue(new Date());
+
+        urlChecker.check.mockResolvedValue(HttpStatus.OK);
+        delayService.wait.mockResolvedValue(undefined);
+
+        await processor.process(jobId);
+
+        expect(repository.setStatus).toHaveBeenCalledWith(jobId, JobStatus.completed);
+        expect(repository.setStatus).not.toHaveBeenCalledWith(jobId, JobStatus.failed);
     });
 });
