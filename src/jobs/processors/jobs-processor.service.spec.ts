@@ -6,11 +6,13 @@ import { Job, JobId } from '../entities/job.entity';
 import { UrlCheckStatus } from '../consts/url-check-status.const';
 import { UrlCheckerService } from '../services/url-checker.service';
 import { UrlCheckErrorMessage } from '../consts/url-check-errors.const';
+import { DelayService } from '../services/delay.service';
 
 describe('JobsProcessor', () => {
     let processor: JobsProcessor;
     let repository: jest.Mocked<Omit<JobsRepository, 'store'>>;
     let urlChecker: jest.Mocked<UrlCheckerService>;
+    let delayService: jest.Mocked<DelayService>;
 
     beforeEach(async () => {
         repository = {
@@ -29,6 +31,10 @@ describe('JobsProcessor', () => {
             check: jest.fn(),
         };
 
+        delayService = {
+            wait: jest.fn(),
+        };
+
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 JobsProcessor,
@@ -39,6 +45,10 @@ describe('JobsProcessor', () => {
                 {
                     provide: UrlCheckerService,
                     useValue: urlChecker,
+                },
+                {
+                    provide: DelayService,
+                    useValue: delayService,
                 },
             ],
         }).compile();
@@ -271,5 +281,36 @@ describe('JobsProcessor', () => {
         expect(repository.markUrlCheckSuccess).toHaveBeenCalledTimes(1);
         expect(repository.markPendingUrlChecksCancelled).toHaveBeenCalledWith(jobId);
         expect(repository.setStatus).not.toHaveBeenCalledWith(jobId, JobStatus.completed);
+    });
+
+    it('process должен выполнять задержку перед сохранением успешного результата', async () => {
+        const jobId: JobId = 'job-1';
+        const url = 'https://example.com';
+
+        repository.findById.mockReturnValue({
+            id: jobId,
+            status: JobStatus.pending,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            urlChecks: [
+                {
+                    url,
+                    status: UrlCheckStatus.pending,
+                },
+            ],
+        });
+
+        repository.markInProgress.mockReturnValue(new Date());
+
+        urlChecker.check.mockResolvedValue(200);
+        delayService.wait.mockResolvedValue(undefined);
+
+        await processor.process(jobId);
+
+        expect(urlChecker.check).toHaveBeenCalledWith(url);
+
+        expect(delayService.wait).toHaveBeenCalledTimes(1);
+
+        expect(repository.markUrlCheckSuccess).toHaveBeenCalledTimes(1);
     });
 });

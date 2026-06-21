@@ -6,12 +6,14 @@ import { UrlCheckerService } from '../services/url-checker.service';
 import { isFailedCode } from '../helpers/is-failed-code.helper';
 import { generateHttpError } from '../helpers/generate-http-error.helper';
 import { UrlCheckErrorMessage } from '../consts/url-check-errors.const';
+import { DelayService } from '../services/delay.service';
 
 @Injectable()
 export class JobsProcessor {
     constructor(
         private readonly repository: JobsRepository,
         private readonly urlChecker: UrlCheckerService,
+        private readonly delayService: DelayService,
     ) {}
 
     public async process(jobId: JobId): Promise<void> {
@@ -58,6 +60,8 @@ export class JobsProcessor {
 
             const now = new Date();
             const duration = now.getTime() - startedAt.getTime();
+
+            await this.delayService.wait();
 
             this.repository.markUrlCheckSuccess(jobId, url, {
                 httpCode,
