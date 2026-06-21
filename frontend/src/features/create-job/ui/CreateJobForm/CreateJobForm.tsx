@@ -1,26 +1,25 @@
-import { useState } from 'react';
-
-import { Button, Card, TextInput } from '@shared';
+import type { AppDispatch } from '@app/store';
+import { useDispatch, useSelector } from 'react-redux';
+import { Button, Card, ErrorMessage, TextInput } from '@shared';
+import { createJob } from '../../api/createJobApi';
+import { getCreateJobState } from '../../model/selectors';
+import { addUrl, changeUrl, removeUrl } from '../../model/slices/createJobSlice';
 
 import styles from './CreateJobForm.module.scss';
 
 export function CreateJobForm() {
-    const [urls, setUrls] = useState<string[]>(['']);
+    const dispatch = useDispatch<AppDispatch>();
 
-    const addUrl = () => {
-        setUrls((prev) => [...prev, '']);
-    };
+    const { urls, isLoading, error } = useSelector(getCreateJobState);
 
-    const changeUrl = (index: number, value: string) => {
-        setUrls((prev) => prev.map((url, currentIndex) => (currentIndex === index ? value : url)));
-    };
+    const handleSubmit = () => {
+        const filteredUrls = urls.map((url) => url.trim()).filter(Boolean);
 
-    const removeUrl = (index: number) => {
-        setUrls((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
-    };
+        if (filteredUrls.length === 0) {
+            return;
+        }
 
-    const submit = () => {
-        urls.map((url) => url.trim()).filter(Boolean);
+        void dispatch(createJob(filteredUrls));
     };
 
     return (
@@ -32,11 +31,22 @@ export function CreateJobForm() {
                         className={styles.textInput}
                         placeholder="https://example.com"
                         value={url}
-                        onChange={(event) => changeUrl(index, event.currentTarget.value)}
+                        onChange={(event) =>
+                            dispatch(
+                                changeUrl({
+                                    index,
+                                    value: event.currentTarget.value,
+                                }),
+                            )
+                        }
                     />
 
                     {urls.length > 1 && (
-                        <Button variant="subtle" color="red" onClick={() => removeUrl(index)}>
+                        <Button
+                            variant="subtle"
+                            color="red"
+                            onClick={() => dispatch(removeUrl(index))}
+                        >
                             Удалить
                         </Button>
                     )}
@@ -44,12 +54,16 @@ export function CreateJobForm() {
             ))}
 
             <div className={styles.btns}>
-                <Button variant="light" onClick={addUrl}>
+                <Button variant="light" onClick={() => dispatch(addUrl())}>
                     + URL
                 </Button>
 
-                <Button onClick={submit}>Создать</Button>
+                <Button loading={isLoading} onClick={handleSubmit}>
+                    Создать
+                </Button>
             </div>
+
+            {error && <ErrorMessage>{error}</ErrorMessage>}
         </Card>
     );
 }
