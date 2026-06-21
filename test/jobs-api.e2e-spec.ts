@@ -77,7 +77,7 @@ describe('JobsController (e2e)', () => {
 
         expect(body[0]).toEqual({
             id: postBody_1.jobId,
-            status: JobStatus.pending,
+            status: JobStatus.inProgress,
             createdAt: expect.any(String),
             updatedAt: expect.any(String),
             urlCount: 1,
@@ -87,7 +87,7 @@ describe('JobsController (e2e)', () => {
 
         expect(body[1]).toEqual({
             id: postBody_2.jobId,
-            status: JobStatus.pending,
+            status: JobStatus.inProgress,
             createdAt: expect.any(String),
             updatedAt: expect.any(String),
             urlCount: 2,
