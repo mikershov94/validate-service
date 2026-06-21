@@ -5,10 +5,12 @@ import { Job, JobId, UrlCheck } from './entities/job.entity';
 import { JobStatus } from './consts/job-status.const';
 import { UrlCheckStatus } from './consts/url-check-status.const';
 import { JobInfo } from './interfaces/job-info.interface';
+import { JobsProcessor } from './processors/jobs-processor.service';
 
 describe('JobsService', () => {
     let service: JobsService;
     let repository: jest.Mocked<Omit<JobsRepository, 'store'>>;
+    let processor: jest.Mocked<Pick<JobsProcessor, 'process'>>;
 
     beforeAll(async () => {
         repository = {
@@ -17,6 +19,15 @@ describe('JobsService', () => {
             findById: jest.fn(),
             getUrlChecksByJobId: jest.fn(),
             markCancelled: jest.fn(),
+            markInProgress: jest.fn(),
+            markPendingUrlChecksCancelled: jest.fn(),
+            markUrlCheckError: jest.fn(),
+            markUrlCheckSuccess: jest.fn(),
+            setStatus: jest.fn(),
+        };
+
+        processor = {
+            process: jest.fn(),
         };
 
         const module: TestingModule = await Test.createTestingModule({
@@ -25,6 +36,10 @@ describe('JobsService', () => {
                 {
                     provide: JobsRepository,
                     useValue: repository,
+                },
+                {
+                    provide: JobsProcessor,
+                    useValue: processor,
                 },
             ],
         }).compile();
@@ -46,6 +61,19 @@ describe('JobsService', () => {
 
         expect(repository.create).toHaveBeenCalled();
         expect(result).toBe(jobId);
+    });
+
+    it('createJob должен вызвать обработку Job после создания', () => {
+        const urls = ['https://example.com'];
+        const jobId: JobId = '123';
+
+        repository.create.mockReturnValue(jobId);
+        processor.process.mockResolvedValue(undefined);
+
+        service.createJob(urls);
+
+        expect(repository.create).toHaveBeenCalled();
+        expect(processor.process).toHaveBeenCalledWith(jobId);
     });
 
     it('getJobList должен вызывать метод репозитория и возврвщать список', () => {

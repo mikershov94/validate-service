@@ -3,13 +3,21 @@ import { JobsRepository } from './repository/jobs.repository';
 import { Job, JobId, UrlCheck } from './entities/job.entity';
 import { JobInfo } from './interfaces/job-info.interface';
 import { UrlCheckStatus } from './consts/url-check-status.const';
+import { JobsProcessor } from './processors/jobs-processor.service';
 
 @Injectable()
 export class JobsService {
-    constructor(private readonly repository: JobsRepository) {}
+    constructor(
+        private readonly repository: JobsRepository,
+        private readonly processor: JobsProcessor,
+    ) {}
 
     createJob(urls: string[]): JobId {
-        return this.repository.create(urls);
+        const jobId = this.repository.create(urls);
+
+        void this.processor.process(jobId);
+
+        return jobId;
     }
 
     getJobsList(): JobInfo[] {
@@ -39,7 +47,7 @@ export class JobsService {
     }
 
     getJob(id: JobId): Job {
-        return this.repository.findById(id)!;
+        return this.repository.findById(id);
     }
 
     getUrlChecks(jobId: string): UrlCheck[] {
