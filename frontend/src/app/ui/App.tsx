@@ -1,11 +1,11 @@
-import { Button } from '@mantine/core';
+import { MantineProvider } from '@mantine/core';
+import { MainPage } from '@pages';
 
 function App() {
     return (
-        <>
-            <div>Hello</div>
-            <Button>Hello</Button>
-        </>
+        <MantineProvider>
+            <MainPage />
+        </MantineProvider>
     );
 }
 
