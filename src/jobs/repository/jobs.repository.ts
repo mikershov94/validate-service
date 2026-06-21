@@ -111,7 +111,12 @@ export class JobsRepository {
         });
     }
 
-    public markUrlCheckError(id: JobId, url: string, urlCheckError: UrlCheckError): void {
+    public markUrlCheckError(
+        id: JobId,
+        url: string,
+        urlCheckError: UrlCheckError,
+        stats: UrlCheckStats,
+    ): void {
         const job = this.findById(id);
         this.store.set(id, {
             ...job,
@@ -123,6 +128,8 @@ export class JobsRepository {
                         status: UrlCheckStatus.error,
                         httpCode: urlCheckError.httpCode,
                         errorMessage: urlCheckError.message,
+                        endedAt: stats.endedAt,
+                        duration: stats.duration,
                     };
                 }
                 return check;

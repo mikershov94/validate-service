@@ -104,7 +104,7 @@ describe('JobsProcessor (e2e)', () => {
         let failedJob: GetJobDetailsDto | undefined;
 
         for (let i = 0; i < MAX_ATTEMPTS; i++) {
-            const response = await request(server).get(`/jobs/${jobId}`).expect(200);
+            const response = await request(server).get(`/jobs/${jobId}`).expect(HttpStatus.OK);
 
             const job = response.body as GetJobDetailsDto;
 
@@ -117,19 +117,25 @@ describe('JobsProcessor (e2e)', () => {
         }
 
         expect(failedJob).toBeDefined();
+
         expect(failedJob?.id).toBe(jobId);
         expect(failedJob?.status).toBe(JobStatus.failed);
         expect(failedJob?.createdAt).toEqual(expect.any(String));
         expect(failedJob?.updatedAt).toEqual(expect.any(String));
         expect(failedJob?.urlChecks).toHaveLength(1);
 
-        const urlCheck = failedJob?.urlChecks[0];
+        const urlCheck = failedJob!.urlChecks[0];
 
         expect(urlCheck).toBeDefined();
-        expect(urlCheck?.url).toBe('https://example.com/not-found');
-        expect(urlCheck?.status).toBe(UrlCheckStatus.error);
-        expect(urlCheck?.httpCode).toBe(HttpStatus.NOT_FOUND);
-        expect(urlCheck?.errorMessage).toBe(UrlCheckErrorMessage.CLIENT_ERROR);
+
+        expect(urlCheck.url).toBe('https://example.com/not-found');
+        expect(urlCheck.status).toBe(UrlCheckStatus.error);
+        expect(urlCheck.httpCode).toBe(HttpStatus.NOT_FOUND);
+        expect(urlCheck.errorMessage).toBe(UrlCheckErrorMessage.CLIENT_ERROR);
+
+        expect(urlCheck.startedAt).toEqual(expect.any(String));
+        expect(urlCheck.endedAt).toEqual(expect.any(String));
+        expect(urlCheck.duration).toBeGreaterThanOrEqual(0);
     });
 
     it('процессор отменяет Job и помечает не начатые URL как cancelled', async () => {

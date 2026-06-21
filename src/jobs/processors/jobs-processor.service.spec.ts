@@ -128,7 +128,7 @@ describe('JobsProcessor', () => {
         });
 
         repository.markInProgress.mockReturnValue(new Date());
-        urlChecker.check.mockResolvedValue(200);
+        urlChecker.check.mockResolvedValue(HttpStatus.OK);
 
         await processor.process(jobId);
 
@@ -137,12 +137,12 @@ describe('JobsProcessor', () => {
 
         const result = repository.markUrlCheckSuccess.mock.calls[0][2];
 
-        expect(result.httpCode).toBe(200);
+        expect(result.httpCode).toBe(HttpStatus.OK);
         expect(result.endedAt).toBeInstanceOf(Date);
         expect(result.duration).toBeGreaterThanOrEqual(0);
     });
 
-    it('process должен помечать failed UrlCheck при неуспешных HTTP-кодах и устанавливать errorMessage', async () => {
+    it('process должен помечать failed UrlCheck при неуспешных HTTP-кодах и устанавливать errorMessage и stats', async () => {
         const jobId: JobId = 'job-1';
         const url = 'https://example1.com';
 
@@ -160,20 +160,28 @@ describe('JobsProcessor', () => {
         });
 
         repository.markInProgress.mockReturnValue(new Date());
-        urlChecker.check.mockResolvedValue(404);
+        urlChecker.check.mockResolvedValue(HttpStatus.NOT_FOUND);
 
         await processor.process(jobId);
 
         expect(repository.markUrlCheckError).toHaveBeenCalledTimes(1);
-        expect(repository.markUrlCheckError).toHaveBeenCalledWith(jobId, url, expect.any(Object));
+        expect(repository.markUrlCheckError).toHaveBeenCalledWith(
+            jobId,
+            url,
+            expect.any(Object),
+            expect.any(Object),
+        );
 
         const result = repository.markUrlCheckError.mock.calls[0][2];
+        const stats = repository.markUrlCheckError.mock.calls[0][3];
 
-        expect(result.httpCode).toBe(404);
+        expect(result.httpCode).toBe(HttpStatus.NOT_FOUND);
         expect(result.message).toBe(UrlCheckErrorMessage.CLIENT_ERROR);
+        expect(stats.endedAt).toBeInstanceOf(Date);
+        expect(stats.duration).toBeGreaterThanOrEqual(0);
     });
 
-    it('process должен помечать failed UrlCheck при ошибках сети и устанавливать errorMessage', async () => {
+    it('process должен помечать failed UrlCheck при ошибках сети и устанавливать errorMessage и stats', async () => {
         const jobId: JobId = 'job-1';
         const url = 'https://example1.com';
 
@@ -196,11 +204,19 @@ describe('JobsProcessor', () => {
         await processor.process(jobId);
 
         expect(repository.markUrlCheckError).toHaveBeenCalledTimes(1);
-        expect(repository.markUrlCheckError).toHaveBeenCalledWith(jobId, url, expect.any(Object));
+        expect(repository.markUrlCheckError).toHaveBeenCalledWith(
+            jobId,
+            url,
+            expect.any(Object),
+            expect.any(Object),
+        );
 
         const result = repository.markUrlCheckError.mock.calls[0][2];
+        const stats = repository.markUrlCheckError.mock.calls[0][3];
 
         expect(result.message).toBe(UrlCheckErrorMessage.DEFAULT);
+        expect(stats.endedAt).toBeInstanceOf(Date);
+        expect(stats.duration).toBeGreaterThanOrEqual(0);
     });
 
     it('process должен завершать Job', async () => {

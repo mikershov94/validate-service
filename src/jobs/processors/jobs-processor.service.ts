@@ -66,11 +66,21 @@ export class JobsProcessor {
 
             if (isFailedCode(httpCode)) {
                 const errorMessage = generateHttpError(httpCode);
+                const now = new Date();
+                const duration = now.getTime() - startedAt.getTime();
 
-                this.repository.markUrlCheckError(jobId, url, {
-                    httpCode,
-                    message: errorMessage ?? UrlCheckErrorMessage.DEFAULT,
-                });
+                this.repository.markUrlCheckError(
+                    jobId,
+                    url,
+                    {
+                        httpCode,
+                        message: errorMessage ?? UrlCheckErrorMessage.DEFAULT,
+                    },
+                    {
+                        endedAt: now,
+                        duration,
+                    },
+                );
 
                 return UrlCheckStatus.error;
             }
@@ -88,9 +98,19 @@ export class JobsProcessor {
 
             return UrlCheckStatus.success;
         } catch {
-            this.repository.markUrlCheckError(jobId, url, {
-                message: UrlCheckErrorMessage.DEFAULT,
-            });
+            const now = new Date();
+            const duration = now.getTime() - startedAt.getTime();
+            this.repository.markUrlCheckError(
+                jobId,
+                url,
+                {
+                    message: UrlCheckErrorMessage.DEFAULT,
+                },
+                {
+                    endedAt: now,
+                    duration,
+                },
+            );
 
             return UrlCheckStatus.error;
         }

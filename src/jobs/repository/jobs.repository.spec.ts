@@ -131,20 +131,32 @@ describe('JobsRepository', () => {
         });
     });
 
-    it('markUrlCheckError помечает UrlCheck как error и устанавливает errorMessage', () => {
+    it('markUrlCheckError помечает UrlCheck как error и устанавливает errorMessage и stats', () => {
         const urls = ['https://example1.com', 'https://example2.com'];
         const jobId = repository.create(urls);
 
-        repository.markUrlCheckError(jobId, 'https://example2.com', {
-            httpCode: HttpStatus.NOT_FOUND,
-            message: UrlCheckErrorMessage.CLIENT_ERROR,
-        });
+        repository.markInProgress(jobId);
+        repository.markUrlCheckError(
+            jobId,
+            'https://example2.com',
+            {
+                httpCode: HttpStatus.NOT_FOUND,
+                message: UrlCheckErrorMessage.CLIENT_ERROR,
+            },
+            {
+                endedAt: new Date(),
+                duration: 2,
+            },
+        );
 
         const job = repository.findById(jobId);
         job.urlChecks.forEach((check) => {
             if (check.url === 'https://example2.com') {
                 expect(check.status).toBe(UrlCheckStatus.error);
                 expect(check.errorMessage).toBe(UrlCheckErrorMessage.CLIENT_ERROR);
+                expect(check.startedAt).toBeInstanceOf(Date);
+                expect(check.endedAt).toBeInstanceOf(Date);
+                expect(check.duration).toBeGreaterThan(0);
             }
         });
     });
