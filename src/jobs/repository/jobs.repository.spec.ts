@@ -100,6 +100,17 @@ describe('JobsRepository', () => {
         expect(startedAt).toBeInstanceOf(Date);
     });
 
+    it('markInCancelled помечает Job cancelled', () => {
+        const urls = ['https://example1.com', 'https://example2.com'];
+        const jobId = repository.create(urls);
+
+        repository.markCancelled(jobId);
+
+        const job = repository.findById(jobId);
+        expect(job.status).toBe(JobStatus.cancelled);
+        expect(job.updatedAt).not.toBe(job.createdAt);
+    });
+
     it('markUrlCheckSuccess помечает UrlCheck как success и устанавливает статистику', () => {
         const urls = ['https://example1.com', 'https://example2.com'];
         const jobId = repository.create(urls);

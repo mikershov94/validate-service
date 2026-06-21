@@ -79,6 +79,16 @@ export class JobsRepository {
         return now;
     }
 
+    public markCancelled(id: JobId): void {
+        const job = this.findById(id);
+
+        this.store.set(id, {
+            ...job,
+            status: JobStatus.cancelled,
+            updatedAt: new Date(),
+        });
+    }
+
     public markUrlCheckSuccess(id: JobId, url: string, stats: UrlCheckStats): void {
         const job = this.findById(id);
 
