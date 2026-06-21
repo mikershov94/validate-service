@@ -63,3 +63,5 @@ Thumbs.db
 *.sln
 *.launch
 *.sublime-workspace
+*storybook.log
+storybook-static
