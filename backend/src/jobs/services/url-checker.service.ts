@@ -4,6 +4,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 export class UrlCheckerService {
     public async check(url: string): Promise<HttpStatus> {
         const response = await fetch(url, { method: 'HEAD' });
+
         return response.status;
     }
 }
