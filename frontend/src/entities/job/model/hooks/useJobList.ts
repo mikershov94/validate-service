@@ -20,5 +20,8 @@ export function useJobsList() {
         setPollingInterval(hasActiveJobs ? POLLING_INTERVAL_MS : 0);
     }, [query.data]);
 
-    return query;
+    return {
+        ...query,
+        startPolling: () => setPollingInterval(POLLING_INTERVAL_MS),
+    };
 }

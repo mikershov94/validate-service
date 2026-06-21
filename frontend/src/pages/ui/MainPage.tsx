@@ -3,18 +3,31 @@ import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '@app/store';
 
 import { JobList } from '@widgets/JobList';
-import { JobDetailsPanel, useJobsList } from '@entities/job';
+import { JobDetailsPanel, useCancelJobMutation, useJobsList } from '@entities/job';
 import { selectJob } from '@entities/job';
 import { CreateJobForm } from '@features/create-job';
 
 import styles from './MainPage.module.scss';
+import { apiErrors } from '@shared';
 
 export const MainPage: FC = () => {
     const dispatch = useDispatch<AppDispatch>();
 
     const selectedJobId = useSelector((state: RootState) => state.jobs.selectedJobId);
 
-    const { data: jobs = [], isLoading } = useJobsList();
+    const { data: jobs = [], isLoading, startPolling } = useJobsList();
+
+    const [cancelJob] = useCancelJobMutation();
+
+    const handleCancelJob = async (jobId: string) => {
+        startPolling();
+
+        try {
+            await cancelJob(jobId).unwrap();
+        } catch {
+            console.error(apiErrors.DELETE_JOB_ERROR);
+        }
+    };
 
     return (
         <div className={styles.container}>
@@ -26,7 +39,7 @@ export const MainPage: FC = () => {
                         selectedJobId={selectedJobId ?? undefined}
                         isLoading={isLoading}
                         onSelectJob={(jobId) => dispatch(selectJob(jobId))}
-                        onCancelJob={(jobId) => console.log('cancel', jobId)}
+                        onCancelJob={handleCancelJob}
                     />
                 </div>
             </div>
