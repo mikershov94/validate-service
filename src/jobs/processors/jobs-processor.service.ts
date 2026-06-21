@@ -69,7 +69,7 @@ export class JobsProcessor {
 
                 this.repository.markUrlCheckError(jobId, url, {
                     httpCode,
-                    message: errorMessage!,
+                    message: errorMessage ?? UrlCheckErrorMessage.DEFAULT,
                 });
 
                 return UrlCheckStatus.error;

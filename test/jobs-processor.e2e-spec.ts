@@ -149,7 +149,7 @@ describe('JobsProcessor (e2e)', () => {
 
         const { jobId } = createResponse.body as CreateJobResponseDto;
 
-        await request(server).delete(`/jobs/${jobId}`).expect(204);
+        await request(server).delete(`/jobs/${jobId}`).expect(200);
 
         let cancelledJob: GetJobDetailsDto | undefined;
 
@@ -158,7 +158,11 @@ describe('JobsProcessor (e2e)', () => {
 
             const job = response.body as GetJobDetailsDto;
 
-            if (job.status === JobStatus.cancelled) {
+            const hasCancelledChecks = job.urlChecks.some(
+                (check) => check.status === UrlCheckStatus.cancelled,
+            );
+
+            if (job.status === JobStatus.cancelled && hasCancelledChecks) {
                 cancelledJob = job;
                 break;
             }

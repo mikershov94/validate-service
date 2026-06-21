@@ -465,4 +465,84 @@ describe('JobsProcessor', () => {
         expect(repository.setStatus).toHaveBeenCalledWith(jobId, JobStatus.completed);
         expect(repository.setStatus).not.toHaveBeenCalledWith(jobId, JobStatus.failed);
     });
+
+    it('process должен отменить pending URL и не запускать обработку, если Job уже cancelled', async () => {
+        const jobId: JobId = 'job-1';
+
+        const job: Job = {
+            id: jobId,
+            status: JobStatus.cancelled,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            urlChecks: [
+                {
+                    url: 'https://example1.com',
+                    status: UrlCheckStatus.pending,
+                },
+                {
+                    url: 'https://example2.com',
+                    status: UrlCheckStatus.pending,
+                },
+            ],
+        };
+
+        repository.findById.mockReturnValue(job);
+
+        await processor.process(jobId);
+
+        expect(repository.markPendingUrlChecksCancelled).toHaveBeenCalledWith(jobId);
+        expect(repository.markInProgress).not.toHaveBeenCalled();
+        expect(urlChecker.check).not.toHaveBeenCalled();
+        expect(repository.markUrlCheckSuccess).not.toHaveBeenCalled();
+        expect(repository.markUrlCheckError).not.toHaveBeenCalled();
+
+        expect(repository.setStatus).not.toHaveBeenCalledWith(jobId, JobStatus.completed);
+        expect(repository.setStatus).not.toHaveBeenCalledWith(jobId, JobStatus.failed);
+    });
+
+    it('process должен остановить следующие батчи и отменить pending URL, если Job cancelled во время обработки', async () => {
+        const jobId: JobId = 'job-1';
+
+        const urlChecks: UrlCheck[] = Array.from({ length: 6 }, (_, index) => ({
+            url: `https://example${index + 1}.com`,
+            status: UrlCheckStatus.pending,
+        }));
+
+        const activeJob: Job = {
+            id: jobId,
+            status: JobStatus.pending,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            urlChecks,
+        };
+
+        const cancelledJob: Job = {
+            ...activeJob,
+            status: JobStatus.cancelled,
+        };
+
+        repository.findById
+            .mockReturnValueOnce(activeJob)
+            .mockReturnValueOnce(activeJob)
+            .mockReturnValueOnce(cancelledJob);
+
+        repository.markInProgress.mockReturnValue(new Date());
+
+        urlChecker.check.mockResolvedValue(HttpStatus.OK);
+        delayService.wait.mockResolvedValue(undefined);
+
+        await processor.process(jobId);
+
+        expect(urlChecker.check).toHaveBeenCalledTimes(5);
+
+        expect(urlChecker.check).toHaveBeenCalledWith('https://example1.com');
+        expect(urlChecker.check).toHaveBeenCalledWith('https://example5.com');
+        expect(urlChecker.check).not.toHaveBeenCalledWith('https://example6.com');
+
+        expect(repository.markUrlCheckSuccess).toHaveBeenCalledTimes(5);
+        expect(repository.markPendingUrlChecksCancelled).toHaveBeenCalledWith(jobId);
+
+        expect(repository.setStatus).not.toHaveBeenCalledWith(jobId, JobStatus.completed);
+        expect(repository.setStatus).not.toHaveBeenCalledWith(jobId, JobStatus.failed);
+    });
 });
