@@ -10,6 +10,8 @@ import { DelayService } from '../services/delay.service';
 
 @Injectable()
 export class JobsProcessor {
+    private readonly batchSize: number = 5;
+
     constructor(
         private readonly repository: JobsRepository,
         private readonly urlChecker: UrlCheckerService,
@@ -27,7 +29,7 @@ export class JobsProcessor {
 
         this.repository.markInProgress(job.id);
 
-        for (const urlCheck of job.urlChecks) {
+        for (let i = 0; i < job.urlChecks.length; i += this.batchSize) {
             const currentJob = this.repository.findById(jobId);
 
             if (currentJob.status === JobStatus.cancelled) {
@@ -35,7 +37,13 @@ export class JobsProcessor {
                 return;
             }
 
-            await this.processUrl(job.id, urlCheck, new Date());
+            const batch = job.urlChecks.slice(i, i + this.batchSize);
+
+            await Promise.all(
+                batch.map((check) => {
+                    return this.processUrl(job.id, check, new Date());
+                }),
+            );
         }
 
         this.repository.setStatus(job.id, JobStatus.completed);

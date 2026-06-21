@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { JobsProcessor } from './jobs-processor.service';
 import { JobsRepository } from '../repository/jobs.repository';
 import { JobStatus } from '../consts/job-status.const';
-import { Job, JobId } from '../entities/job.entity';
+import { Job, JobId, UrlCheck } from '../entities/job.entity';
 import { UrlCheckStatus } from '../consts/url-check-status.const';
 import { UrlCheckerService } from '../services/url-checker.service';
 import { UrlCheckErrorMessage } from '../consts/url-check-errors.const';
@@ -245,21 +245,17 @@ describe('JobsProcessor', () => {
     it('process должен прекращать обработку не начатых URL, если Job была отменена во время обработки', async () => {
         const jobId: JobId = 'job-1';
 
+        const urlChecks: UrlCheck[] = Array.from({ length: 6 }, (_, index) => ({
+            url: `https://example${index + 1}.com`,
+            status: UrlCheckStatus.pending,
+        }));
+
         const activeJob: Job = {
             id: jobId,
             status: JobStatus.pending,
             createdAt: new Date(),
             updatedAt: new Date(),
-            urlChecks: [
-                {
-                    url: 'https://example1.com',
-                    status: UrlCheckStatus.pending,
-                },
-                {
-                    url: 'https://example2.com',
-                    status: UrlCheckStatus.pending,
-                },
-            ],
+            urlChecks,
         };
 
         const cancelledJob: Job = {
@@ -271,14 +267,20 @@ describe('JobsProcessor', () => {
             .mockReturnValueOnce(activeJob)
             .mockReturnValueOnce(activeJob)
             .mockReturnValueOnce(cancelledJob);
+
         repository.markInProgress.mockReturnValue(new Date());
+
         urlChecker.check.mockResolvedValue(200);
+        delayService.wait.mockResolvedValue(undefined);
 
         await processor.process(jobId);
 
-        expect(urlChecker.check).toHaveBeenCalledTimes(1);
+        expect(urlChecker.check).toHaveBeenCalledTimes(5);
         expect(urlChecker.check).toHaveBeenCalledWith('https://example1.com');
-        expect(repository.markUrlCheckSuccess).toHaveBeenCalledTimes(1);
+        expect(urlChecker.check).toHaveBeenCalledWith('https://example5.com');
+        expect(urlChecker.check).not.toHaveBeenCalledWith('https://example6.com');
+
+        expect(repository.markUrlCheckSuccess).toHaveBeenCalledTimes(5);
         expect(repository.markPendingUrlChecksCancelled).toHaveBeenCalledWith(jobId);
         expect(repository.setStatus).not.toHaveBeenCalledWith(jobId, JobStatus.completed);
     });
@@ -312,5 +314,48 @@ describe('JobsProcessor', () => {
         expect(delayService.wait).toHaveBeenCalledTimes(1);
 
         expect(repository.markUrlCheckSuccess).toHaveBeenCalledTimes(1);
+    });
+
+    it('process должен выполнять не более 5 HEAD-запросов одновременно', async () => {
+        const jobId: JobId = 'job-1';
+
+        const urlChecks: UrlCheck[] = Array.from({ length: 10 }, (_, index) => ({
+            url: `https://example${index + 1}.com`,
+            status: UrlCheckStatus.pending,
+        }));
+
+        repository.findById.mockReturnValue({
+            id: jobId,
+            status: JobStatus.pending,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            urlChecks,
+        });
+
+        repository.markInProgress.mockReturnValue(new Date());
+        delayService.wait.mockResolvedValue(undefined);
+
+        let activeRequests = 0;
+        let maxActiveRequests = 0;
+
+        urlChecker.check.mockImplementation(async () => {
+            activeRequests += 1;
+
+            maxActiveRequests = Math.max(maxActiveRequests, activeRequests);
+
+            await new Promise<void>((resolve) => {
+                setTimeout(resolve, 10);
+            });
+
+            activeRequests -= 1;
+
+            return 200;
+        });
+
+        await processor.process(jobId);
+
+        expect(urlChecker.check).toHaveBeenCalledTimes(10);
+        expect(maxActiveRequests).toBeGreaterThan(1);
+        expect(maxActiveRequests).toBeLessThanOrEqual(5);
     });
 });
